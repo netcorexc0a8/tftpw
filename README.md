@@ -1,72 +1,116 @@
 # TFTPW
 
-Веб-интерфейс для управления TFTP-сервером с возможностью загрузки, скачивания и удаления файлов.  
-Проект реализован на **Python Flask**, с поддержкой отображения хешей файлов (MD5 и SHA-512) и прогресс-бара при загрузке.
+A web interface for managing a TFTP server, built with Python Flask. Allows uploading, downloading, and deleting files with file hash display (MD5 and SHA-512) and upload progress bars.
 
 ---
 
-## Особенности
+## Features
 
-- Поддержка **загрузки нескольких файлов** одновременно.
-- **Отображение выбранных файлов** с их размерами в мегабайтах (округлёнными до целого числа) перед загрузкой.
-- **Карточки файлов** с хешами MD5 и SHA-512.
-- **Кнопки «Скачать» и «Удалить»** для каждого файла.
-- **Прогресс-бар** загрузки файлов.
-- **Тёмная тема** интерфейса.
-- **Сортировка карточек** по имени файла (независимо от регистра).
-- Ограничение максимального размера загружаемых файлов: **200 MB**.
-- Полная совместимость с Docker.
-
----
-
-## Требования
-
-- Python 3.9+
-- Flask
-- Рабочий TFTP-сервер на базе **atftpd**
-- Docker
+- **Multiple file uploads** simultaneously.
+- **File preview** with sizes displayed in MB (rounded to whole numbers) before upload.
+- **File cards** with MD5 and SHA-512 hashes.
+- **Download and Delete buttons** for each file.
+- **Upload progress bar**.
+- **Dark theme** interface.
+- **File sorting** by name (case-insensitive).
+- Maximum upload file size: **500 MB**.
+- Full Docker compatibility.
 
 ---
 
-## Установка и запуск
+## Requirements
 
-1. Клонировать репозиторий:
-```bash
-git clone <репозиторий>
-cd <папка_проекта>
-```
-2. Создать каталог для TFTP-файлов:
-```bash
-mkdir -p /data
-```
-3. Запустить docker compose:
-```bash
-sudo docker compose build && sudo docker compose up -d
-```
-4. Перейти в браузере по адресу:
-```bash
-http://ip:5000
-```
+- Docker and Docker Compose installed on your system.
+- Ports 5000 (HTTP) and 69/UDP (TFTP) available.
 
 ---
 
-## Использование
+## Installation and Running
 
-* Выберите один или несколько файлов с помощью кнопки 📂 Выбрать файл.
-* Размеры файлов будут отображены под кнопкой в МБ.
-* Нажмите ⬆️ Загрузить, чтобы отправить файлы на сервер.
-* Список файлов на сервере отображается в виде карточек с:
-  * названием файла,
-  * кнопками ⬇️ Скачать и 🗑️ Удалить,
-  * хешами MD5 и SHA-512.
-* Карточки автоматически сортируются по имени файла.
+The project is designed to run entirely in Docker. Follow these steps:
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd <project-directory>
+   ```
+
+2. Ensure the `data` directory exists for TFTP files:
+   ```bash
+   mkdir -p data
+   ```
+
+3. Build and start the services using Docker Compose:
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+
+4. Access the web interface at `http://localhost:5000`.
+
+The TFTP server will be running on port 69/UDP, and files will be stored in the `./data` directory on the host.
 
 ---
 
-## Примечания
+## Usage
 
-* Максимальный размер загружаемого файла: 500 MB.
-* Интерфейс полностью тёмный, удобный для работы в ночное время.
-* Все изменения (загрузка, удаление) обновляют страницу автоматически.
-* Прогресс-бар отображает ход загрузки файлов.
-* Поддерживается многопользовательская работа (одновременная загрузка нескольких файлов).
+- Click **📂 Select File** to choose one or more files.
+- File sizes will be displayed in MB below the button.
+- Click **⬆️ Upload** to send the files to the server.
+- Uploaded files are listed as cards with:
+  - File name
+  - **⬇️ Download** and **🗑️ Delete** buttons
+  - MD5 and SHA-512 hashes
+- Cards are automatically sorted by file name.
+- Changes (uploads, deletions) refresh the page automatically.
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port conflicts**:
+   - Ensure ports 5000 and 69 are not in use by other services.
+   - Check with: `netstat -an | grep :5000` or `netstat -an | grep :69`.
+   - Solution: Stop conflicting services or change ports in `docker-compose.yml` and `Dockerfile`.
+
+2. **Docker build fails**:
+   - Ensure Docker is installed and running.
+   - Check disk space and internet connection for downloading images.
+   - Solution: Run `docker system prune` to clean up, then retry.
+
+3. **Files not uploading**:
+   - Check file size: Maximum 500 MB.
+   - Verify `./data` directory permissions: `chmod 755 data`.
+   - Check container logs: `docker compose logs tftp`.
+
+4. **Hashes not displaying**:
+   - Ensure files are properly saved in `./data`.
+   - Check app logs inside container for errors.
+
+5. **Cannot access web interface**:
+   - Confirm the container is running: `docker compose ps`.
+   - Try `http://127.0.0.1:5000` or your machine's IP.
+   - Firewall may block port 5000.
+
+6. **TFTP server not responding**:
+   - Verify atftpd is running in the container.
+   - Check UDP port 69: `docker compose exec tftp netstat -uln | grep :69`.
+
+7. **Permission issues on Windows**:
+   - Ensure Docker Desktop has access to the project directory.
+   - Run commands in an elevated terminal if needed.
+
+If issues persist, check full logs: `docker compose logs` and search for error messages.
+
+---
+
+## Notes
+
+- Maximum file size: 500 MB.
+- Interface is fully dark-themed for comfortable nighttime use.
+- All operations (upload, delete) trigger automatic page refreshes.
+- Progress bars show upload status in real-time.
+- Supports concurrent file uploads from multiple users.
+- TFTP server runs as a daemon inside the Docker container alongside the Flask app.
