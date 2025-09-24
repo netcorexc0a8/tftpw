@@ -1,8 +1,8 @@
 services:
   tftp:
     build: .
-    image: ipset-tftp
-    container_name: ipset-tftp
+    image: tftpw
+    container_name: tftpw
     restart: unless-stopped
     network_mode: host
     volumes:

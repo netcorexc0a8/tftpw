@@ -7,6 +7,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 logging.info("Flask app created")
+logging.info("Project name: TFTPW")
 app.secret_key = "supersecret"
 UPLOAD_FOLDER = "/tftpboot"
 logging.info(f"UPLOAD_FOLDER set to: {UPLOAD_FOLDER}")
@@ -21,7 +22,7 @@ TEMPLATE = """
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>TFTP</title>
+  <title>TFTPW</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -152,7 +153,7 @@ TEMPLATE = """
   </style>
 </head>
 <body>
-  <h1>📂 Files on TFTP Server</h1>
+  <h1>📂 Files on TFTPW Server</h1>
 
   {% with messages = get_flashed_messages() %}
     {% if messages %}

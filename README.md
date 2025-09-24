@@ -1,6 +1,6 @@
 # TFTPW
 
-A web interface for managing a TFTP server, built with Python Flask. Allows uploading, downloading, and deleting files with file hash display (MD5 and SHA-512) and upload progress bars.
+A web interface for managing a TFTPW server, built with Python Flask. Allows uploading, downloading, and deleting files with file hash display (MD5 and SHA-512) and upload progress bars.
 
 ---
 
@@ -48,7 +48,7 @@ The project is designed to run entirely in Docker. Follow these steps:
 
 4. Access the web interface at `http://localhost:5000`.
 
-The TFTP server will be running on port 69/UDP, and files will be stored in the `./data` directory on the host.
+The TFTPW server will be running on port 69/UDP, and files will be stored in the `./data` directory on the host.
 
 ---
 
@@ -94,7 +94,7 @@ The TFTP server will be running on port 69/UDP, and files will be stored in the 
    - Try `http://127.0.0.1:5000` or your machine's IP.
    - Firewall may block port 5000.
 
-6. **TFTP server not responding**:
+6. **TFTPW server not responding**:
    - Verify atftpd is running in the container.
    - Check UDP port 69: `docker compose exec tftp netstat -uln | grep :69`.
 
@@ -113,4 +113,10 @@ If issues persist, check full logs: `docker compose logs` and search for error m
 - All operations (upload, delete) trigger automatic page refreshes.
 - Progress bars show upload status in real-time.
 - Supports concurrent file uploads from multiple users.
-- TFTP server runs as a daemon inside the Docker container alongside the Flask app.
+- TFTPW server runs as a daemon inside the Docker container alongside the Flask app.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
