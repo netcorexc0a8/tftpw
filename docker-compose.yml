@@ -1,0 +1,9 @@
+services:
+  tftp:
+    build: .
+    image: ipset-tftp
+    container_name: ipset-tftp
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./data:/tftpboot
