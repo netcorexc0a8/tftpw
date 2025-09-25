@@ -1,21 +1,27 @@
-from flask import Flask, render_template_string, request, redirect, url_for, send_from_directory, flash
+from flask import Flask, render_template_string, request, redirect, url_for, send_from_directory, flash, abort
 import os
 import hashlib
 import logging
+from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
-__version__ = "1.0.0"
+load_dotenv()
+logging.info(".env file loaded")
+
+__version__ = "1.1.0"
 
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 logging.info("Flask app created")
 logging.info(f"Project name: TFTPW v{__version__}")
-app.secret_key = "supersecret"
+app.secret_key = os.getenv('SECRET_KEY')
+logging.info(f"Secret key loaded from .env: length={len(app.secret_key) if app.secret_key else 0}, key_present={app.secret_key is not None}")
 UPLOAD_FOLDER = "/dboot"
 logging.info(f"UPLOAD_FOLDER set to: {UPLOAD_FOLDER}")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-MAX_CONTENT_LENGTH = 500 * 1024 * 1024
+MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 500)) * 1024 * 1024
 logging.info(f"MAX_CONTENT_LENGTH set to: {MAX_CONTENT_LENGTH} bytes")
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
@@ -313,12 +319,17 @@ def index():
         logging.info(f"Received upload request for files: {[f.filename for f in files if f.filename]}")
         for file in files:
             if file.filename:
-                logging.debug(f"Processing file: {file.filename}, size: {file.content_length}")
+                secure_name = secure_filename(file.filename)
+                if not secure_name:
+                    logging.warning(f"Invalid filename: {file.filename}")
+                    flash(f"Invalid filename: {file.filename}")
+                    continue
+                logging.debug(f"Processing file: {file.filename} -> {secure_name}, size: {file.content_length}")
                 if file.content_length and file.content_length > MAX_CONTENT_LENGTH:
                     logging.warning(f"File {file.filename} too large: {file.content_length} > {MAX_CONTENT_LENGTH} (max message says 200 MB)")
                     flash(f"File {file.filename} is too large (maximum 500 MB)")
                     continue
-                filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+                filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
                 logging.info(f"Saving file to: {filepath}")
                 file.save(filepath)
         return redirect(url_for("index"))
@@ -339,13 +350,24 @@ def index():
         hashes = {}
     return render_template_string(TEMPLATE, files=files, hashes=hashes, version=__version__)
 
-@app.route("/download/<filename>")
+@app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+    secure_name = secure_filename(filename)
+    if not secure_name:
+        abort(404)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
+    if not os.path.exists(filepath) or not os.path.abspath(filepath).startswith(os.path.abspath(app.config["UPLOAD_FOLDER"])):
+        abort(404)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], secure_name, as_attachment=True)
 
-@app.route("/delete/<filename>")
+@app.route("/delete/<filename>", methods=["GET"])
 def delete_file(filename):
-    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    secure_name = secure_filename(filename)
+    if not secure_name:
+        return redirect(url_for("index"))
+    path = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
+    if not os.path.abspath(path).startswith(os.path.abspath(app.config["UPLOAD_FOLDER"])):
+        return redirect(url_for("index"))
     logging.info(f"Attempting to delete file: {path}")
     if os.path.exists(path):
         try:

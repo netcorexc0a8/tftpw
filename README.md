@@ -1,4 +1,4 @@
-# TFTPW v1.0.0
+# TFTPW v1.1.0
 
 A web interface for managing a TFTPW server, built with Python Flask. Allows uploading, downloading, and deleting files with file hash display (MD5 and SHA-512) and upload progress bars.
 
@@ -13,7 +13,7 @@ A web interface for managing a TFTPW server, built with Python Flask. Allows upl
 - **Upload progress bar**.
 - **Dark theme** interface.
 - **File sorting** by name (case-insensitive).
-- Maximum upload file size: **500 MB**.
+- Maximum upload file size: configurable via `MAX_CONTENT_LENGTH` (default 500 MB).
 - Full Docker compatibility.
 
 ---
@@ -22,6 +22,24 @@ A web interface for managing a TFTPW server, built with Python Flask. Allows upl
 
 - Docker and Docker Compose installed on your system.
 - Ports 5000 (HTTP) and 69/UDP (TFTP) available.
+
+---
+
+## Environment Variables
+
+The application uses environment variables for configuration. Create a `.env` file in the project root with the following variables:
+
+- `SECRET_KEY`: A secret key used by Flask for session management and security. This should be a long, random string.
+- `MAX_CONTENT_LENGTH`: Maximum file size for uploads in MB (default: 500).
+
+Example `.env` file:
+
+```
+SECRET_KEY=your_secret_key_here
+MAX_CONTENT_LENGTH=500
+```
+
+**Note:** The `.env` file is ignored by Git for security reasons. Never commit sensitive information.
 
 ---
 
@@ -40,13 +58,20 @@ The project is designed to run entirely in Docker. Follow these steps:
    mkdir -p data
    ```
 
-3. Build and start the services using Docker Compose:
+3. Configure environment variables:
+   Copy the example `.env` file and set your values:
+   ```bash
+   cp .env .env.local  # or edit .env directly
+   ```
+   Edit the `.env` file to set the required variables (see Environment Variables section above).
+
+4. Build and start the services using Docker Compose:
    ```bash
    docker compose build
    docker compose up -d
    ```
 
-4. Access the web interface at `http://localhost:5000`.
+5. Access the web interface at `http://localhost:5000`.
 
 The TFTPW server will be running on port 69/UDP, and files will be stored in the `./data` directory on the host.
 
@@ -81,9 +106,9 @@ The TFTPW server will be running on port 69/UDP, and files will be stored in the
    - Solution: Run `docker system prune` to clean up, then retry.
 
 3. **Files not uploading**:
-   - Check file size: Maximum 500 MB.
-   - Verify `./data` directory permissions: `chmod 755 data`.
-   - Check container logs: `docker compose logs tftp`.
+    - Check file size: Maximum size is set by `MAX_CONTENT_LENGTH` (default 500 MB).
+    - Verify `./data` directory permissions: `chmod 755 data`.
+    - Check container logs: `docker compose logs tftp`.
 
 4. **Hashes not displaying**:
    - Ensure files are properly saved in `./data`.
@@ -108,7 +133,7 @@ If issues persist, check full logs: `docker compose logs` and search for error m
 
 ## Notes
 
-- Maximum file size: 500 MB.
+- Maximum file size: configurable via `MAX_CONTENT_LENGTH` (default 500 MB).
 - Interface is fully dark-themed for comfortable nighttime use.
 - All operations (upload, delete) trigger automatic page refreshes.
 - Progress bars show upload status in real-time.
