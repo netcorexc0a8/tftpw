@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 load_dotenv()
 logging.info(".env file loaded")
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -214,7 +214,14 @@ TEMPLATE = """
     // Display selected files with sizes in KB or MB and individual progress bars
     fileInput.addEventListener("change", () => {
       selectedFilesList.innerHTML = "";
+      const maxSize = {{ max_size_mb }} * 1024 * 1024; // {{ max_size_mb }} MB
+      let hasLargeFile = false;
       Array.from(fileInput.files).forEach(file => {
+        if (file.size > maxSize) {
+          alert(`File ${file.name} is too large (maximum {{ max_size_mb }} MB)`);
+          hasLargeFile = true;
+          return;
+        }
         let sizeText;
         if (file.size < 1024 * 1024) {
           const sizeKB = Math.round(file.size / 1024);
@@ -238,6 +245,10 @@ TEMPLATE = """
         `;
         selectedFilesList.appendChild(div);
       });
+      if (hasLargeFile) {
+        fileInput.value = ""; // Clear the input
+        selectedFilesList.innerHTML = "";
+      }
     });
 
     // Upload selected files one by one with individual progress
@@ -278,8 +289,10 @@ TEMPLATE = """
             if (completed === files.length) {
               setTimeout(() => location.reload(), 2000);
             }
+          } else if (xhr.status === 413) {
+            alert("File " + file.name + " is too large (maximum {{ max_size_mb }} MB)");
           } else {
-            alert("Error uploading " + file.name);
+            alert("Error uploading " + file.name + " (status: " + xhr.status + ")");
           }
         };
 
@@ -317,6 +330,7 @@ def index():
     if request.method == "POST":
         files = request.files.getlist("file")
         logging.info(f"Received upload request for files: {[f.filename for f in files if f.filename]}")
+        logging.info(f"Request content_length: {request.content_length}")
         for file in files:
             if file.filename:
                 secure_name = secure_filename(file.filename)
@@ -325,13 +339,23 @@ def index():
                     flash(f"Invalid filename: {file.filename}")
                     continue
                 logging.debug(f"Processing file: {file.filename} -> {secure_name}, size: {file.content_length}")
+                logging.debug(f"MAX_CONTENT_LENGTH: {MAX_CONTENT_LENGTH}")
                 if file.content_length and file.content_length > MAX_CONTENT_LENGTH:
-                    logging.warning(f"File {file.filename} too large: {file.content_length} > {MAX_CONTENT_LENGTH} (max message says 200 MB)")
-                    flash(f"File {file.filename} is too large (maximum 500 MB)")
+                    logging.warning(f"File {file.filename} too large: {file.content_length} > {MAX_CONTENT_LENGTH}")
+                    flash(f"File {file.filename} is too large (maximum {MAX_CONTENT_LENGTH // (1024*1024)} MB)")
                     continue
+                elif file.content_length is None:
+                    logging.warning(f"file.content_length is None for {file.filename}, cannot check size")
+                else:
+                    logging.debug(f"File size check passed for {file.filename}: {file.content_length} <= {MAX_CONTENT_LENGTH}")
                 filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
                 logging.info(f"Saving file to: {filepath}")
-                file.save(filepath)
+                try:
+                    file.save(filepath)
+                    logging.info(f"File saved successfully: {filepath}")
+                except Exception as e:
+                    logging.error(f"Error saving file {filepath}: {e}")
+                    flash(f"Error saving file {file.filename}")
         return redirect(url_for("index"))
 
     try:
@@ -348,7 +372,8 @@ def index():
         logging.error(f"Error listing files: {e}")
         files = []
         hashes = {}
-    return render_template_string(TEMPLATE, files=files, hashes=hashes, version=__version__)
+    max_size_mb = MAX_CONTENT_LENGTH // (1024 * 1024)
+    return render_template_string(TEMPLATE, files=files, hashes=hashes, version=__version__, max_size_mb=max_size_mb)
 
 @app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):

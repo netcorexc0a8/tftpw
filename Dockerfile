@@ -1,9 +1,8 @@
 FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y atftpd bash && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir flask werkzeug
-
-RUN mkdir -p /dboot && chown -R nobody:nogroup /dboot
+    && pip install --no-cache-dir flask werkzeug python-dotenv \
+    && mkdir -p /dboot && chown -R nobody:nogroup /dboot
 
 WORKDIR /app
 
