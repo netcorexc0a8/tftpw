@@ -59,9 +59,9 @@ The project is designed to run entirely in Docker. Follow these steps:
    ```
 
 3. Configure environment variables:
-   Copy the example `.env` file and set your values:
+   Create the `.env` file and set your values:
    ```bash
-   cp .env .env.local  # or edit .env directly
+   touch .env # or edit .env directly
    ```
    Edit the `.env` file to set the required variables (see Environment Variables section above).
 
@@ -71,7 +71,7 @@ The project is designed to run entirely in Docker. Follow these steps:
    docker compose up -d
    ```
 
-5. Access the web interface at `http://localhost:5000`.
+5. Access the web interface at `http://IP:5000`.
 
 The TFTPW server will be running on port 69/UDP, and files will be stored in the `./data` directory on the host.
 
