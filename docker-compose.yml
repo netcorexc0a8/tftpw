@@ -6,4 +6,4 @@ services:
     restart: unless-stopped
     network_mode: host
     volumes:
-      - ./data:/tftpboot
+      - ./data:/dboot

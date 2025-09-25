@@ -1,4 +1,4 @@
-# TFTPW
+# TFTPW v1.0.0
 
 A web interface for managing a TFTPW server, built with Python Flask. Allows uploading, downloading, and deleting files with file hash display (MD5 and SHA-512) and upload progress bars.
 

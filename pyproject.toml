@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tftpw"
+version = "1.0.0"
+description = "A web interface for managing a TFTP server"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+dependencies = [
+    "Flask>=2.0.0",
+    "Werkzeug>=2.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/tftpw"
+Repository = "https://github.com/yourusername/tftpw"
+Issues = "https://github.com/yourusername/tftpw/issues"
+
+[tool.setuptools]
+packages = ["."]
+
+[tool.setuptools.package-data]
+"" = ["*"]

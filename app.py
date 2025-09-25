@@ -3,13 +3,15 @@ import os
 import hashlib
 import logging
 
+__version__ = "1.0.0"
+
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 logging.info("Flask app created")
-logging.info("Project name: TFTPW")
+logging.info(f"Project name: TFTPW v{__version__}")
 app.secret_key = "supersecret"
-UPLOAD_FOLDER = "/tftpboot"
+UPLOAD_FOLDER = "/dboot"
 logging.info(f"UPLOAD_FOLDER set to: {UPLOAD_FOLDER}")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -150,10 +152,16 @@ TEMPLATE = """
       text-align: center;
       margin-bottom: 15px;
     }
+    .version {
+      text-align: center;
+      font-size: 0.8em;
+      color: #888;
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
-  <h1>📂 Files on TFTPW Server</h1>
+  <h1>📂 Files TFTPW</h1>
 
   {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -280,6 +288,7 @@ TEMPLATE = """
       console.log(`A button ${index} font-size:`, window.getComputedStyle(btn).fontSize);
     });
   </script>
+  <div class="version">Version: {{ version }}</div>
 </body>
 </html>
 """
@@ -328,7 +337,7 @@ def index():
         logging.error(f"Error listing files: {e}")
         files = []
         hashes = {}
-    return render_template_string(TEMPLATE, files=files, hashes=hashes)
+    return render_template_string(TEMPLATE, files=files, hashes=hashes, version=__version__)
 
 @app.route("/download/<filename>")
 def download_file(filename):
