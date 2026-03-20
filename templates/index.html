@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>TFTPW</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #121212;
+      color: #e0e0e0;
+    }
+    h1 { text-align: center; color: #ffffff; }
+    .btn {
+      background: #10a37f;
+      color: white;
+      padding: 8px 15px;
+      text-decoration: none;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      display: inline-block;
+      font-size: inherit;
+    }
+    .btn.delete-btn { background: #e74c3c; }
+    .btn:hover { opacity: 0.9; }
+    #upload-form {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #file-upload { display: none; }
+    #selected-files-list {
+      margin-top: 10px;
+      margin-bottom: 10px;
+      font-size: 0.9em;
+      color: #bbbbbb;
+    }
+    .file-card {
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background: #1e1e1e;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      max-width: 100%;
+      overflow: hidden;
+      word-wrap: break-word;
+    }
+    .file-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .file-name {
+      font-weight: bold;
+      word-break: break-word;
+      flex: 1;
+      cursor: pointer;
+      user-select: all;
+    }
+    .file-actions {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .file-actions a {
+      text-decoration: none;
+      color: white;
+    }
+    .file-actions a:hover {
+      text-decoration: none;
+    }
+    .file-hash {
+      font-size: 0.85em;
+      color: #aaaaaa;
+      word-break: break-all;
+      overflow-wrap: break-word;
+      margin-top: 5px;
+      max-width: 100%;
+    }
+    .file-hash span {
+      cursor: pointer;
+      user-select: all;
+    }
+    .file-hash span:hover {
+      color: #10a37f;
+    }
+    .file-hash div {
+      display: block;
+      margin-bottom: 2px;
+    }
+    .copy-hint {
+      font-size: 0.75em;
+      color: #666;
+      margin-top: 5px;
+    }
+    .progress-container {
+      margin-top: 10px;
+      margin-bottom: 10px;
+      display: none;
+      background: #333;
+      border-radius: 4px;
+    }
+    .file-progress-bar {
+      position: relative;
+      height: 12px;
+    }
+    .file-progress-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 12px;
+      line-height: 12px;
+    }
+    .progress-bar {
+      height: 16px;
+      background: #10a37f;
+      width: 0%;
+      border-radius: 4px;
+      transition: width 0.3s;
+      position: relative;
+    }
+    #progress-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      line-height: 16px;
+    }
+    .flash {
+      color: #ff5555;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .version {
+      text-align: center;
+      font-size: 0.8em;
+      color: #888;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body data-max-size-mb="{{ max_size_mb }}">
+  <h1>📂 Files TFTPW</h1>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+
+  <form id="upload-form" method="post" enctype="multipart/form-data">
+    <label for="file-upload" class="btn">📂 Select File</label>
+    <input id="file-upload" type="file" name="file" multiple>
+    <button type="submit" class="btn">⬆️ Upload</button>
+  </form>
+
+  <div id="selected-files-list"></div>
+
+  <div class="progress-container" id="progress-container">
+    <div class="progress-bar" id="progress-bar"><span id="progress-text"></span></div>
+  </div>
+
+  {% for file in files %}
+  <div class="file-card">
+    <div class="file-header">
+      <span class="file-name" data-copy-text='{{ file|tojson }}' title="Click to copy filename">{{ file }}</span>
+      <div class="file-actions">
+        <a href="{{ url_for('download_file', filename=file) }}" class="btn">⬇️ Download</a>
+        <a href="{{ url_for('delete_file', filename=file) }}" class="btn delete-btn">🗑️ Delete</a>
+      </div>
+    </div>
+    <div class="file-hash">
+      <div><strong>MD5:</strong> <span data-copy-text='{{ hashes[file]["md5"]|tojson }}' title="Click to copy">{{ hashes[file]['md5'] }}</span></div>
+      <div><strong>SHA-256:</strong> <span data-copy-text='{{ hashes[file]["sha256"]|tojson }}' title="Click to copy">{{ hashes[file]['sha256'] }}</span></div>
+      <div><strong>SHA-512:</strong> <span data-copy-text='{{ hashes[file]["sha512"]|tojson }}' title="Click to copy">{{ hashes[file]['sha512'] }}</span></div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <div class="version">Version: {{ version }}</div>
+</body>
+</html>
