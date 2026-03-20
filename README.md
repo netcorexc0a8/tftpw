@@ -81,9 +81,9 @@ The project is designed to run entirely in Docker. Follow these steps:
     ```
 
 3. Configure environment variables:
-    Copy the example `.env` file and set your values:
+    Copy the example `.env.example` file and set your values:
     ```bash
-    cp .env .env.local  # or edit .env directly
+    cp .env.example .env
     ```
     Edit the `.env` file to set the required variables (see Environment Variables section above).
 
