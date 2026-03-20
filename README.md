@@ -62,8 +62,6 @@ SECRET_KEY=your_secret_key_here
 MAX_CONTENT_LENGTH=500
 ```
 
-**Note:** The `.env` file is ignored by Git for security reasons. Never commit sensitive information.
-
 ---
 
 ## Installation and Running
