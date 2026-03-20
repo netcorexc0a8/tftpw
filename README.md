@@ -17,6 +17,7 @@ tftpw/
 ├── data/              # Directory for TFTP files (mounted volume)
 ├── Dockerfile         # Docker image configuration
 ├── docker-compose.yml # Docker Compose configuration
+├── .env.example       # Example .env file
 └── README.md          # This file
 ```
 
