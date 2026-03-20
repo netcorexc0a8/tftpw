@@ -1,407 +1,87 @@
-from flask import Flask, render_template_string, request, redirect, url_for, send_from_directory, flash, abort
-import os
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash, abort
+from pathlib import Path
 import hashlib
 import logging
+import os
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 
 load_dotenv()
-logging.info(".env file loaded")
-
-__version__ = "1.1.1"
-
 logging.basicConfig(level=logging.DEBUG)
 
-app = Flask(__name__)
-logging.info("Flask app created")
-logging.info(f"Project name: TFTPW v{__version__}")
+__version__ = "1.2.5"
+
+# Get the directory where this script is located
+BASE_DIR = Path(__file__).resolve().parent
+
+app = Flask(__name__, 
+            template_folder=str(BASE_DIR / 'templates'),
+            static_folder=str(BASE_DIR / 'static'))
 app.secret_key = os.getenv('SECRET_KEY')
-logging.info(f"Secret key loaded from .env: length={len(app.secret_key) if app.secret_key else 0}, key_present={app.secret_key is not None}")
-UPLOAD_FOLDER = "/dboot"
-logging.info(f"UPLOAD_FOLDER set to: {UPLOAD_FOLDER}")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+UPLOAD_FOLDER = Path("/dboot")
+UPLOAD_FOLDER.mkdir(exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 500)) * 1024 * 1024
-logging.info(f"MAX_CONTENT_LENGTH set to: {MAX_CONTENT_LENGTH} bytes")
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-TEMPLATE = """
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <title>TFTPW</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      background: #121212;
-      color: #e0e0e0;
-    }
-    h1 { text-align: center; color: #ffffff; }
-    .btn {
-      background: #10a37f;
-      color: white;
-      padding: 8px 15px;
-      text-decoration: none;
-      border-radius: 5px;
-      border: none;
-      cursor: pointer;
-      display: inline-block;
-      font-size: inherit;
-    }
-    .btn.delete-btn { background: #e74c3c; }
-    .btn:hover { opacity: 0.9; }
-    #upload-form {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    #file-upload { display: none; }
-    #selected-files-list {
-      margin-top: 10px;
-      margin-bottom: 10px;
-      font-size: 0.9em;
-      color: #bbbbbb;
-    }
-    .file-card {
-      border: 1px solid #333;
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 15px;
-      background: #1e1e1e;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-      max-width: 100%;
-      overflow: hidden;
-      word-wrap: break-word;
-    }
-    .file-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .file-name {
-      font-weight: bold;
-      word-break: break-word;
-      flex: 1;
-    }
-    .file-actions {
-      display: flex;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-    .file-actions a {
-      text-decoration: none;
-      color: white;
-    }
-    .file-actions a:hover {
-      text-decoration: none;
-    }
-    .file-hash {
-      font-size: 0.85em;
-      color: #aaaaaa;
-      word-break: break-all;
-      overflow-wrap: break-word;
-      margin-top: 5px;
-      max-width: 100%;
-    }
-    .file-hash div {
-      display: block;
-      margin-bottom: 2px;
-    }
-    .progress-container {
-      margin-top: 10px;
-      margin-bottom: 10px;
-      display: none;
-      background: #333;
-      border-radius: 4px;
-    }
-    .file-progress-bar {
-      position: relative;
-      height: 12px;
-    }
-    .file-progress-text {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      color: white;
-      font-size: 12px;
-      line-height: 12px;
-    }
-    .progress-bar {
-      height: 16px;
-      background: #10a37f;
-      width: 0%;
-      border-radius: 4px;
-      transition: width 0.3s;
-      position: relative;
-    }
-    #progress-text {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      line-height: 16px;
-    }
-    .flash {
-      color: #ff5555;
-      text-align: center;
-      margin-bottom: 15px;
-    }
-    .version {
-      text-align: center;
-      font-size: 0.8em;
-      color: #888;
-      margin-bottom: 20px;
-    }
-  </style>
-</head>
-<body>
-  <h1>📂 Files TFTPW</h1>
-
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <div class="flash">{{ messages[0] }}</div>
-    {% endif %}
-  {% endwith %}
-
-  <form id="upload-form" method="post" enctype="multipart/form-data">
-    <label for="file-upload" class="btn">📂 Select File</label>
-    <input id="file-upload" type="file" name="file" multiple>
-    <button type="submit" class="btn">⬆️ Upload</button>
-  </form>
-
-  <div id="selected-files-list"></div>
-
-  <div class="progress-container" id="progress-container">
-    <div class="progress-bar" id="progress-bar"><span id="progress-text"></span></div>
-  </div>
-
-  {% for file in files %}
-  <div class="file-card">
-    <div class="file-header">
-      <span class="file-name">{{ file }}</span>
-      <div class="file-actions">
-        <a href="{{ url_for('download_file', filename=file) }}" class="btn">⬇️ Download</a>
-        <a href="{{ url_for('delete_file', filename=file) }}" class="btn delete-btn">🗑️ Delete</a>
-      </div>
-    </div>
-    <div class="file-hash">
-      <div><strong>MD5:</strong> {{ hashes[file]['md5'] }}</div>
-      <div><strong>SHA-512:</strong> {{ hashes[file]['sha512'] }}</div>
-    </div>
-  </div>
-  {% endfor %}
-
-  <script>
-    const form = document.getElementById("upload-form");
-    const fileInput = document.getElementById("file-upload");
-    const selectedFilesList = document.getElementById("selected-files-list");
-    const progressContainer = document.getElementById("progress-container");
-    const progressBar = document.getElementById("progress-bar");
-    const progressText = document.getElementById("progress-text");
-
-    // Display selected files with sizes in KB or MB and individual progress bars
-    fileInput.addEventListener("change", () => {
-      selectedFilesList.innerHTML = "";
-      const maxSize = {{ max_size_mb }} * 1024 * 1024; // {{ max_size_mb }} MB
-      let hasLargeFile = false;
-      Array.from(fileInput.files).forEach(file => {
-        if (file.size > maxSize) {
-          alert(`File ${file.name} is too large (maximum {{ max_size_mb }} MB)`);
-          hasLargeFile = true;
-          return;
-        }
-        let sizeText;
-        if (file.size < 1024 * 1024) {
-          const sizeKB = Math.round(file.size / 1024);
-          sizeText = `${sizeKB} KB`;
-        } else {
-          const sizeMB = Math.round(file.size / (1024 * 1024));
-          sizeText = `${sizeMB} MB`;
-        }
-        const div = document.createElement("div");
-        div.style.display = "flex";
-        div.style.justifyContent = "flex-start";
-        div.style.alignItems = "center";
-        div.style.gap = "10px";
-        div.innerHTML = `
-          <div>📄 ${file.name} (${sizeText})</div>
-          <div class="file-progress-container" style="display: none; width: 200px;">
-            <div class="file-progress-bar" style="height: 12px; background: #10a37f; width: 0%; border-radius: 4px;">
-              <div class="file-progress-text">0%</div>
-            </div>
-          </div>
-        `;
-        selectedFilesList.appendChild(div);
-      });
-      if (hasLargeFile) {
-        fileInput.value = ""; // Clear the input
-        selectedFilesList.innerHTML = "";
-      }
-    });
-
-    // Upload selected files one by one with individual progress
-    form.addEventListener("submit", function(e) {
-      e.preventDefault();
-      if (fileInput.files.length === 0) return;
-
-      const files = Array.from(fileInput.files);
-      let completed = 0;
-
-      files.forEach((file, index) => {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/", true);
-
-        const fileDiv = selectedFilesList.children[index];
-        const progressContainer = fileDiv.querySelector('.file-progress-container');
-        const progressBar = progressContainer.querySelector('.file-progress-bar');
-        const progressText = progressContainer.querySelector('.file-progress-text');
-
-        progressContainer.style.display = "block";
-
-        xhr.upload.onprogress = function(e) {
-          if (e.lengthComputable) {
-            const percent = (e.loaded / e.total) * 100;
-            progressBar.style.width = percent + "%";
-            progressText.textContent = Math.round(percent) + "%";
-          }
-        };
-
-        xhr.onload = function() {
-          if (xhr.status === 200) {
-            progressBar.style.width = "100%";
-            progressText.textContent = "Calculating hashes...";
-            completed++;
-            if (completed === files.length) {
-              setTimeout(() => location.reload(), 2000);
-            }
-          } else if (xhr.status === 413) {
-            alert("File " + file.name + " is too large (maximum {{ max_size_mb }} MB)");
-          } else {
-            alert("Error uploading " + file.name + " (status: " + xhr.status + ")");
-          }
-        };
-
-        xhr.send(formData);
-      });
-    });
-
-    // Debug: Log font sizes of buttons
-    console.log('Label button font-size:', window.getComputedStyle(document.querySelector('label.btn')).fontSize);
-    console.log('Submit button font-size:', window.getComputedStyle(document.querySelector('button.btn')).fontSize);
-    document.querySelectorAll('a.btn').forEach((btn, index) => {
-      console.log(`A button ${index} font-size:`, window.getComputedStyle(btn).fontSize);
-    });
-  </script>
-  <div class="version">Version: {{ version }}</div>
-</body>
-</html>
-"""
-
 def get_file_hashes(path):
-    logging.debug(f"Calculating hashes for file: {path}")
-    hashes = {"md5": "", "sha512": ""}
     try:
-        with open(path, "rb") as f:
-            data = f.read()
-            hashes["md5"] = hashlib.md5(data).hexdigest()
-            hashes["sha512"] = hashlib.sha512(data).hexdigest()
-        logging.debug(f"Hashes calculated for {path}: MD5={hashes['md5'][:8]}..., SHA512={hashes['sha512'][:8]}...")
+        data = path.read_bytes()
+        return {
+            "md5": hashlib.md5(data).hexdigest(),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "sha512": hashlib.sha512(data).hexdigest()
+        }
     except Exception as e:
         logging.error(f"Error calculating hashes for {path}: {e}")
-    return hashes
+        return {"md5": "", "sha256": "", "sha512": ""}
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        files = request.files.getlist("file")
-        logging.info(f"Received upload request for files: {[f.filename for f in files if f.filename]}")
-        logging.info(f"Request content_length: {request.content_length}")
-        for file in files:
-            if file.filename:
-                secure_name = secure_filename(file.filename)
-                if not secure_name:
-                    logging.warning(f"Invalid filename: {file.filename}")
-                    flash(f"Invalid filename: {file.filename}")
-                    continue
-                logging.debug(f"Processing file: {file.filename} -> {secure_name}, size: {file.content_length}")
-                logging.debug(f"MAX_CONTENT_LENGTH: {MAX_CONTENT_LENGTH}")
+        for file in request.files.getlist("file"):
+            if file.filename and (secure_name := secure_filename(file.filename)):
                 if file.content_length and file.content_length > MAX_CONTENT_LENGTH:
-                    logging.warning(f"File {file.filename} too large: {file.content_length} > {MAX_CONTENT_LENGTH}")
                     flash(f"File {file.filename} is too large (maximum {MAX_CONTENT_LENGTH // (1024*1024)} MB)")
                     continue
-                elif file.content_length is None:
-                    logging.warning(f"file.content_length is None for {file.filename}, cannot check size")
-                else:
-                    logging.debug(f"File size check passed for {file.filename}: {file.content_length} <= {MAX_CONTENT_LENGTH}")
-                filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
-                logging.info(f"Saving file to: {filepath}")
                 try:
-                    file.save(filepath)
-                    logging.info(f"File saved successfully: {filepath}")
+                    file.save(app.config["UPLOAD_FOLDER"] / secure_name)
                 except Exception as e:
-                    logging.error(f"Error saving file {filepath}: {e}")
+                    logging.error(f"Error saving file {file.filename}: {e}")
                     flash(f"Error saving file {file.filename}")
         return redirect(url_for("index"))
 
     try:
-        files = sorted(os.listdir(app.config["UPLOAD_FOLDER"]), key=lambda x: x.lower())
-        logging.info(f"Listing files in {app.config['UPLOAD_FOLDER']}: {files}")
-        hashes = {}
-        for f in files:
-            filepath = os.path.join(app.config["UPLOAD_FOLDER"], f)
-            if os.path.exists(filepath):
-                hashes[f] = get_file_hashes(filepath)
-            else:
-                logging.warning(f"File {filepath} does not exist during hashing")
+        files = sorted([f for f in app.config["UPLOAD_FOLDER"].iterdir() if f.is_file()], key=lambda x: str(x).lower())
+        hashes = {f.name: get_file_hashes(f) for f in files}
     except Exception as e:
         logging.error(f"Error listing files: {e}")
-        files = []
-        hashes = {}
+        files, hashes = [], {}
+    
     max_size_mb = MAX_CONTENT_LENGTH // (1024 * 1024)
-    return render_template_string(TEMPLATE, files=files, hashes=hashes, version=__version__, max_size_mb=max_size_mb)
+    return render_template("index.html", files=[f.name for f in files], hashes=hashes, version=__version__, max_size_mb=max_size_mb)
 
 @app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):
-    secure_name = secure_filename(filename)
-    if not secure_name:
+    if not (secure_name := secure_filename(filename)):
         abort(404)
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
-    if not os.path.exists(filepath) or not os.path.abspath(filepath).startswith(os.path.abspath(app.config["UPLOAD_FOLDER"])):
+    filepath = app.config["UPLOAD_FOLDER"] / secure_name
+    if not filepath.exists() or not filepath.resolve().is_relative_to(app.config["UPLOAD_FOLDER"].resolve()):
         abort(404)
     return send_from_directory(app.config["UPLOAD_FOLDER"], secure_name, as_attachment=True)
 
 @app.route("/delete/<filename>", methods=["GET"])
 def delete_file(filename):
-    secure_name = secure_filename(filename)
-    if not secure_name:
+    if not (secure_name := secure_filename(filename)):
         return redirect(url_for("index"))
-    path = os.path.join(app.config["UPLOAD_FOLDER"], secure_name)
-    if not os.path.abspath(path).startswith(os.path.abspath(app.config["UPLOAD_FOLDER"])):
-        return redirect(url_for("index"))
-    logging.info(f"Attempting to delete file: {path}")
-    if os.path.exists(path):
+    path = app.config["UPLOAD_FOLDER"] / secure_name
+    if path.resolve().is_relative_to(app.config["UPLOAD_FOLDER"].resolve()):
         try:
-            os.remove(path)
+            path.unlink()
             logging.info(f"Deleted file: {path}")
         except Exception as e:
             logging.error(f"Error deleting {path}: {e}")
-    else:
-        logging.warning(f"File not found for deletion: {path}")
     return redirect(url_for("index"))
 
 if __name__ == "__main__":
